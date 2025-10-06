@@ -85,7 +85,7 @@ namespace NetSdrClientApp
 
         private static void NewMethod()
         {
-            //I created this because... 
+            //I created this because... !!!
             
         }
 
