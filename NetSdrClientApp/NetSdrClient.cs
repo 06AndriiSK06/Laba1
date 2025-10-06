@@ -85,7 +85,7 @@ namespace NetSdrClientApp
 
         private static void NewMethod()
         {
-            var iqDataMode = (byte)0x80;
+            
         }
 
         public async Task StopIQAsync()
