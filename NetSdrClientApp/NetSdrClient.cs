@@ -52,7 +52,7 @@ namespace NetSdrClientApp
                 }
             }
         }
-
+        //laba2
         public void Disconect()
         {
             _tcpClient.Disconnect();
