@@ -85,8 +85,8 @@ namespace NetSdrClientApp
 
         private static void NewMethod()
         {
-            // Intentionally left empty.
-            // This placeholder exists to maintain structure or backward compatibility.
+            //I created this because... 
+            
         }
 
         public async Task StopIQAsync()
