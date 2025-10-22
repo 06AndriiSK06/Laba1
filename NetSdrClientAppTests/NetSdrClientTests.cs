@@ -116,4 +116,32 @@ public class NetSdrClientTests
     }
 
     //TODO: cover the rest of the NetSdrClient code here
+
+
+
+    [Test]
+    public void IQStarted_ShouldBeFalseInitially()
+    {
+        // перевірка початкового стану IQStarted
+        Assert.IsFalse(_client.IQStarted);
+    }
+
+    [Test]
+    public void Disconnect_WithoutConnecting_ShouldNotThrow()
+    {
+        // перевіряєм, що виклик Disconnect без з'єднання не викликає винятків
+        Assert.DoesNotThrow(() => _client.Disconect());
+    }
+
+    [Test]
+    public void StopIQ_WithoutStarting_ShouldNotThrow()
+    {
+        // перевіряєм, що зупинка IQ без старта не падає
+        Assert.DoesNotThrowAsync(async () => await _client.StopIQAsync());
+    }
+
+
+
+
+
 }
