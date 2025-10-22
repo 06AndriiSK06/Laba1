@@ -76,7 +76,7 @@ namespace NetSdrClientApp
             var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
-            
+
             await SendTcpRequest(msg);
 
             IQStarted = true;
@@ -118,7 +118,7 @@ namespace NetSdrClientApp
             await SendTcpRequest(msg);
         }
 
-        private void _udpClient_MessageReceived(object? sender, byte[] e)
+        private static void _udpClient_MessageReceived(object? sender, byte[] e)
         {
             NetSdrMessageHelper.TranslateMessage(e, out MsgTypes type, out ControlItemCodes code, out ushort sequenceNum, out byte[] body);
             var samples = NetSdrMessageHelper.GetSamples(16, body);
