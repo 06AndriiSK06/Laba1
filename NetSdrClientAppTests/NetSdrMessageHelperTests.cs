@@ -65,5 +65,43 @@ namespace NetSdrClientAppTests
         }
 
         //TODO: add more NetSdrMessageHelper tests
+
+
+
+        [Test]
+        public void GetControlItemMessage_EmptyParameters_ShouldHaveCorrectLength()
+        {
+            byte[] msg = NetSdrMessageHelper.GetControlItemMessage(
+                NetSdrMessageHelper.MsgTypes.Ack,
+                NetSdrMessageHelper.ControlItemCodes.ReceiverState,
+                new byte[0]
+            );
+
+            Assert.That(msg.Length, Is.EqualTo(4)); // header + code
+        }
+
+        [Test]
+        public void GetDataItemMessage_EmptyParameters_ShouldHaveCorrectLength()
+        {
+            byte[] msg = NetSdrMessageHelper.GetDataItemMessage(
+                NetSdrMessageHelper.MsgTypes.DataItem2,
+                new byte[0]
+            );
+
+            Assert.That(msg.Length, Is.EqualTo(2)); // тільки header
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 }

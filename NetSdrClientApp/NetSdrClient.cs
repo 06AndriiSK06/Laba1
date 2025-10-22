@@ -67,7 +67,7 @@ namespace NetSdrClientApp
             }
 
 ;           var iqDataMode = (byte)0x80;
-            var iqDataMode = (byte)0x80;
+           
            
             var start = (byte)0x02;
             var fifo16bitCaptureMode = (byte)0x01;
