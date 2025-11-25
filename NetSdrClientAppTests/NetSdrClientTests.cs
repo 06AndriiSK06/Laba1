@@ -207,7 +207,145 @@ public class NetSdrClientTests
     }
 
     // Тестування приватної логіки SendTcpRequest та обробки відповіді
-    
+    // NetSdrClientTests.cs - ДОДАЙТЕ ЦІ ТЕСТИ В КЛАС NetSdrClientTests
+
+    [Test]
+    public void UdpMessageReceived_WritesSamplesToFile()
+    {
+        // Цей тест покриває приватний метод _udpClient_MessageReceived та запис у файл
+
+        // Arrange
+        _tcpMock.SetupGet(t => t.Connected).Returns(true);
+
+        // Створюємо валідне повідомлення з даними (16-біт семпли)
+        // Header (DataItem2) + Seq + Body
+        byte[] validDataMessage = {
+                0x06, 0xC0, // Header (Length 6, Type DataItem2)
+                0x00, 0x00, // Sequence
+                0x01, 0x02  // Sample (0x0201)
+            };
+
+        // Видаляємо файл, якщо він існує, щоб тест був чистим
+        if (File.Exists("samples.bin")) File.Delete("samples.bin");
+
+        // Act
+        // Імітуємо прихід UDP пакету
+        _updMock.Raise(u => u.MessageReceived += null, _updMock.Object, validDataMessage);
+
+        // Assert
+        Assert.IsTrue(File.Exists("samples.bin"), "Файл samples.bin мав бути створений");
+
+        var fileInfo = new FileInfo("samples.bin");
+        Assert.That(fileInfo.Length, Is.GreaterThan(0));
+
+        // Cleanup
+        if (File.Exists("samples.bin")) File.Delete("samples.bin");
+    }
+
+    // --- НОВИЙ КЛАС ДЛЯ ТЕСТУВАННЯ WRAPPERS (Додайте його в кінець файлу NetSdrClientTests.cs, але за межами класу NetSdrClientTests) ---
+
+    [TestFixture]
+    public class WrapperIntegrationTests
+    {
+        // Ці тести реально використовують мережу (localhost), щоб покрити TcpClientWrapper та UdpClientWrapper
+        // Це дасть величезний приріст покриття.
+
+        [Test]
+        public async Task TcpClientWrapper_RealConnectionTest()
+        {
+            int port = 56000;
+            var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+            listener.Start();
+
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", port);
+            bool messageReceived = false;
+
+            wrapper.MessageReceived += (s, data) => { messageReceived = true; };
+
+            try
+            {
+                // 1. Connect
+                wrapper.Connect();
+                Assert.IsTrue(wrapper.Connected);
+
+                // Приймаємо клієнта на стороні "сервера"
+                var serverClient = await listener.AcceptTcpClientAsync();
+                var serverStream = serverClient.GetStream();
+
+                // 2. Send (Client -> Server)
+                string testMsg = "Hello";
+                await wrapper.SendMessageAsync(testMsg);
+
+                byte[] buffer = new byte[1024];
+                int read = await serverStream.ReadAsync(buffer, 0, buffer.Length);
+                Assert.That(read, Is.GreaterThan(0));
+
+                // 3. Receive (Server -> Client)
+                byte[] response = { 0xAA, 0xBB };
+                await serverStream.WriteAsync(response, 0, response.Length);
+
+                // Чекаємо поки wrapper отримає дані
+                await Task.Delay(100);
+                Assert.IsTrue(messageReceived);
+
+                // 4. Disconnect
+                wrapper.Disconnect();
+                Assert.IsFalse(wrapper.Connected);
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        [Test]
+        public async Task UdpClientWrapper_RealListeningTest()
+        {
+            int port = 56001;
+            var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(port);
+            bool messageReceived = false;
+
+            wrapper.MessageReceived += (s, e) => { messageReceived = true; };
+
+            // Запускаємо прослуховування
+            var listenTask = wrapper.StartListeningAsync();
+
+            // Відправляємо дані на цей порт
+            using var sender = new System.Net.Sockets.UdpClient();
+            byte[] data = { 1, 2, 3 };
+            await sender.SendAsync(data, data.Length, "127.0.0.1", port);
+
+            // Чекаємо обробки
+            await Task.Delay(100);
+
+            Assert.IsTrue(messageReceived);
+
+            // Зупиняємо
+            wrapper.StopListening();
+
+            // Чекаємо завершення таска
+            await Task.WhenAny(listenTask, Task.Delay(500));
+            Assert.IsTrue(listenTask.IsCompleted);
+        }
+
+        [Test]
+        public void TcpClientWrapper_ConnectToInvalidPort_ShouldNotCrash()
+        {
+            // Тест на обробку помилок (try-catch всередині Connect)
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", 9999); // Неіснуючий порт
+            Assert.DoesNotThrow(() => wrapper.Connect());
+            Assert.IsFalse(wrapper.Connected);
+        }
+
+        [Test]
+        public async Task TcpClientWrapper_SendMessage_WhenNotConnected_Throws()
+        {
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", 56002);
+            // Не викликаємо Connect
+
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await wrapper.SendMessageAsync(new byte[] { 1 }));
+        }
+    }
     [Test]
     public async Task SendTcpRequest_NoConnection_ReturnsNullAndDoesNotThrow()
     {

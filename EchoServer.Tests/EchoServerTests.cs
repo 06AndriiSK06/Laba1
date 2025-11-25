@@ -30,7 +30,44 @@ namespace EchoServer.Tests
             // Cleanup
             server.Stop();
         }
+        // EchoServerTests.cs - ДОДАЙТЕ ЦЕЙ КЛАС В КІНЕЦЬ ФАЙЛУ (всередині namespace EchoServer.Tests)
 
+        [TestFixture]
+        public class UdpTimedSenderTests
+        {
+            [Test]
+            public async Task UdpTimedSender_SendsDataPeriodically()
+            {
+                // Цей тест реально відправляє UDP пакети, щоб покрити код UdpTimedSender
+                int port = 55000;
+                using var receiver = new System.Net.Sockets.UdpClient(port);
+                using var sender = new UdpTimedSender("127.0.0.1", port);
+
+                // Act
+                sender.StartSending(10); // Відправляти кожні 10 мс
+
+                // Чекаємо трохи, щоб таймер спрацював кілька разів
+                await Task.Delay(100);
+
+                sender.StopSending();
+
+                // Assert
+                // Перевіряємо, що хоч щось прийшло (значить код таймера виконався)
+                Assert.That(receiver.Available, Is.GreaterThan(0));
+
+                // Перевіряємо повторний старт (покриття перевірки на _timer != null)
+                Assert.Throws<InvalidOperationException>(() => sender.StartSending(10));
+            }
+
+            [Test]
+            public void UdpTimedSender_Stop_SafeToCallMultipleTimes()
+            {
+                using var sender = new UdpTimedSender("127.0.0.1", 55001);
+                sender.StartSending(100);
+                sender.StopSending();
+                Assert.DoesNotThrow(() => sender.StopSending());
+            }
+        }
         [Test]
         public void Stop_ShouldCallListenerStop()
         {
