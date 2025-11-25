@@ -1,5 +1,5 @@
 # This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
+# They are provided by a third-party and governed by
 # separate terms of service, privacy policy, and support
 # documentation.
 
@@ -55,15 +55,8 @@ jobs:
         run: |
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-          dotnet sonarscanner begin `
-          /k:"06AndriiSK06_Laba1"`                             
-          /o:"06andriisk06"`                                   
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}"`         
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml"` 
-          /d:sonar.cpd.cs.minimumTokens=40`                     
-          /d:sonar.cpd.cs.minimumLines=5`                      
-          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml` 
-          /d:sonar.qualitygate.wait=true
+        
+          dotnet sonarscanner begin /k:"06AndriiSK06_Laba1" /o:"06andriisk06" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" /d:sonar.cpd.cs.minimumTokens=40 /d:sonar.cpd.cs.minimumLines=5 /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml /d:sonar.qualitygate.wait=true
         shell: pwsh
         
       # 2) BUILD & TEST
