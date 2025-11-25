@@ -56,13 +56,13 @@ jobs:
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           dotnet sonarscanner begin `
-          /d:sonar.projectKey="06AndriiSK06_Laba1" `      # <-- ВИПРАВЛЕНО
-          /d:sonar.organization="06andriisk06" `          # <-- ВИПРАВЛЕНО
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-          /d:sonar.cpd.cs.minimumTokens=40 `
-          /d:sonar.cpd.cs.minimumLines=5 `
-          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+          /k:"06AndriiSK06_Laba1"`                              # ВИПРАВЛЕНО: Повернуто /k: та видалено пробіл після `
+          /o:"06andriisk06"`                                    # ВИПРАВЛЕНО: Повернуто /o: та видалено пробіл після `
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}"`          # ВИПРАВЛЕНО: Видалено пробіл після `
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml"` # ВИПРАВЛЕНО: Видалено пробіл після `
+          /d:sonar.cpd.cs.minimumTokens=40`                     # ВИПРАВЛЕНО: Видалено пробіл після `
+          /d:sonar.cpd.cs.minimumLines=5`                       # ВИПРАВЛЕНО: Видалено пробіл після `
+          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml` # ВИПРАВЛЕНО: Видалено пробіл після `
           /d:sonar.qualitygate.wait=true
         shell: pwsh
         
