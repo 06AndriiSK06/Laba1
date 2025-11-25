@@ -654,8 +654,15 @@ public class NetSdrClientTests
             var tcpMock = new Mock<ITcpClient>();
             var udpMock = new Mock<IUdpClient>();
 
-            // Імітуємо підключення
-            tcpMock.SetupGet(t => t.Connected).Returns(true);
+            // ВИПРАВЛЕННЯ: Логіка стану підключення.
+            // Спочатку Connected має бути false, щоб ми зайшли всередину if (!_tcpClient.Connected).
+            // Після виклику Connect(), Connected має стати true, щоб SendTcpRequest не повернув null одразу.
+
+            bool isConnected = false;
+            tcpMock.SetupGet(t => t.Connected).Returns(() => isConnected);
+
+            // Коли викликають Connect, ми змінюємо стан на true
+            tcpMock.Setup(t => t.Connect()).Callback(() => isConnected = true);
 
             // Імітуємо помилку при відправці повідомлення
             tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
@@ -664,7 +671,7 @@ public class NetSdrClientTests
             var client = new NetSdrClient(tcpMock.Object, udpMock.Object);
 
             // Act & Assert
-            // ConnectAsync має впасти, якщо мережа відвалилася під час налаштування
+            // Тепер ConnectAsync зайде в if, викличе Connect (стане true), спробує відправити і впаде.
             Assert.ThrowsAsync<InvalidOperationException>(async () => await client.ConnectAsync());
         }
 

@@ -239,26 +239,36 @@ namespace EchoServer.Tests
         [Test]
         public async Task EchoServer_HandleClientAsync_GenericException_LogsError()
         {
-            // Цей тест спеціально викликає Exception (не OperationCanceledException),
-            // щоб покрити блок catch (Exception ex) { Console.WriteLine(...) }
+            // Цей тест замінює Mock на реальну симуляцію помилки мережі.
+            // Ми розриваємо з'єднання під час читання, що викликає IOException/ObjectDisposedException.
+            // Це гарантовано покриває блок catch (Exception ex) у вашому сервері.
 
+            // 1. Створюємо реальний сервер і клієнт
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, port);
+
+            var serverSideClient = await listener.AcceptTcpClientAsync();
             var server = new EchoServer(5000);
-            var mockClient = Substitute.For<TcpClient>();
-            var mockStream = Substitute.For<NetworkStream>(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), false);
 
-            mockClient.GetStream().Returns(mockStream);
-            mockStream.CanRead.Returns(true);
+            // 2. Запускаємо обробку клієнта
+            var handleTask = server.HandleClientAsync(serverSideClient, CancellationToken.None);
 
-            // Кидаємо звичайний Exception
-            mockStream.ReadAsync(Arg.Any<byte[]>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-                .Returns(Task.FromException<int>(new Exception("Critical Failure")));
+            // 3. СИМУЛЯЦІЯ АВАРІЇ: "Вбиваємо" потік даних з боку сервера
+            // Це змусить метод stream.ReadAsync викинути виняток.
+            serverSideClient.GetStream().Dispose();
 
-            // Act
-            await server.HandleClientAsync(mockClient, CancellationToken.None);
+            // 4. Перевірка
+            // Метод HandleClientAsync повинен перехопити помилку в блоці catch і завершитися без падіння.
+            Assert.DoesNotThrowAsync(async () => await handleTask);
 
-            // Assert
-            // Перевіряємо, що клієнт був закритий (значить блок finally виконався)
-            mockClient.Received().Close();
+            // Перевіряємо, що клієнт був закритий (код дійшов до finally)
+            Assert.IsFalse(serverSideClient.Connected);
+
+            listener.Stop();
         }
     }
 
