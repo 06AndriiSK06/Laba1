@@ -22,7 +22,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # 1) BEGIN: SonarScanner for .NET
+      # 1) BEGIN: SonarScanner
       - name: SonarScanner Begin
         run: |
           dotnet tool install --global dotnet-sonarscanner
@@ -31,7 +31,7 @@ jobs:
           /k:"06AndriiSK06_Laba1" `
           /o:"06andriisk06" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.cobertura.xml" `
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
           /d:sonar.cpd.cs.minimumLines=5 `
           /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
@@ -39,7 +39,6 @@ jobs:
         shell: pwsh
 
       # 2) BUILD & TEST
-      # ВИПРАВЛЕНО: Використовуємо NetSdrClient.sln
       - name: Restore
         run: dotnet restore NetSdrClient.sln
 
@@ -47,12 +46,13 @@ jobs:
         run: dotnet build NetSdrClient.sln -c Release --no-restore
 
       - name: Tests with coverage
-        
+        # Додано Format=opencover, щоб Sonar міг прочитати звіт
         run: |
           dotnet test NetSdrClient.sln -c Release --no-build `
             --verbosity normal `
             --collect:"XPlat Code Coverage" `
-            --results-directory ./TestResults
+            --results-directory ./TestResults `
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
         shell: pwsh
 
       # 3) END: SonarScanner
