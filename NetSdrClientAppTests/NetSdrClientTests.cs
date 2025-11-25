@@ -575,7 +575,115 @@ public class NetSdrClientTests
     }
 
 
+    // --- ДОДАТКОВІ ТЕСТИ ДЛЯ NETSDR CLIENT ---
+    [TestFixture]
+    public class NetSdrCoverageTests
+    {
+        [Test]
+        public void TcpClientWrapper_Connect_ToBadHost_ShouldCatchException()
+        {
+            // Покриває: catch (Exception ex) у методі Connect
+            // Використовуємо неіснуючий хост, щоб викликати SocketException
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("invalid_host_name_impossible_to_resolve", 5000);
 
+            // Метод не повинен впасти, а повинен вивести помилку в консоль (catch)
+            Assert.DoesNotThrow(() => wrapper.Connect());
+            Assert.IsFalse(wrapper.Connected);
+        }
+
+        [Test]
+        public void UdpClientWrapper_StopListening_ErrorHandling()
+        {
+            // Покриває: catch (Exception ex) у StopListeningInternal
+            // Створюємо враппер на зайнятому порту або в стані, що викликає помилку при закритті
+            var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(56021);
+
+            // Викликаємо Stop без Start (це може викликати помилку null reference в деяких реалізаціях, 
+            // або просто пройти, але ми перевіряємо безпеку)
+            Assert.DoesNotThrow(() => wrapper.StopListening());
+        }
+
+        [Test]
+        public void NetSdrClient_FileWriting_IntegrationTest()
+        {
+            // Цей тест реально перевіряє запис у файл samples.bin (покриває using(FileStream...))
+            // Arrange
+            var tcpMock = new Mock<ITcpClient>();
+            tcpMock.SetupGet(t => t.Connected).Returns(true);
+            var udpMock = new Mock<IUdpClient>();
+
+            var client = new NetSdrClient(tcpMock.Object, udpMock.Object);
+
+            // Видаляємо старий файл
+            if (File.Exists("samples.bin")) File.Delete("samples.bin");
+
+            // DataItem2 (Type=6), Length=6 (header+seq+body), Body=2 bytes (1 sample)
+            // Sample = 0x0201 (513 decimal)
+            byte[] msg = { 0x06, 0xC0, 0x00, 0x00, 0x01, 0x02 };
+
+            // Act
+            // Тригеримо подію 2 рази, щоб перевірити Append (додавання) у файл
+            udpMock.Raise(u => u.MessageReceived += null, udpMock.Object, msg);
+            udpMock.Raise(u => u.MessageReceived += null, udpMock.Object, msg);
+
+            // Assert
+            Assert.IsTrue(File.Exists("samples.bin"));
+
+            using (var fs = new FileStream("samples.bin", FileMode.Open))
+            using (var br = new BinaryReader(fs))
+            {
+                // Ми відправили 2 повідомлення по 1 семплу (16 біт = 2 байти).
+                // Разом файл має бути 4 байти.
+                Assert.That(fs.Length, Is.EqualTo(4));
+
+                short sample1 = br.ReadInt16();
+                Assert.That(sample1, Is.EqualTo(0x0201));
+
+                short sample2 = br.ReadInt16();
+                Assert.That(sample2, Is.EqualTo(0x0201));
+            }
+
+            // Cleanup
+            File.Delete("samples.bin");
+        }
+
+        [Test]
+        public async Task NetSdrClient_ConnectAsync_FailsDuringHandshake()
+        {
+            // Покриває сценарій, коли TcpClient падає під час відправки початкових налаштувань
+            var tcpMock = new Mock<ITcpClient>();
+            var udpMock = new Mock<IUdpClient>();
+
+            // Імітуємо підключення
+            tcpMock.SetupGet(t => t.Connected).Returns(true);
+
+            // Імітуємо помилку при відправці повідомлення
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
+                   .ThrowsAsync(new InvalidOperationException("Network fail"));
+
+            var client = new NetSdrClient(tcpMock.Object, udpMock.Object);
+
+            // Act & Assert
+            // ConnectAsync має впасти, якщо мережа відвалилася під час налаштування
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await client.ConnectAsync());
+        }
+
+        [Test]
+        public void NetSdrClient_ResponseHandling_WithNullResponseTask()
+        {
+            // Покриває: if (responseTaskSource != null) у _tcpClient_MessageReceived
+            // Ситуація: прийшло повідомлення, але ми нічого не чекали (Unsolicited message)
+
+            var tcpMock = new Mock<ITcpClient>();
+            var udpMock = new Mock<IUdpClient>();
+            var client = new NetSdrClient(tcpMock.Object, udpMock.Object);
+
+            // Просто кидаємо подію. Код має вивести в консоль "Response recieved..." і не впасти
+            Assert.DoesNotThrow(() =>
+                tcpMock.Raise(t => t.MessageReceived += null, tcpMock.Object, new byte[] { 0xAA, 0xBB })
+            );
+        }
+    }
 
 
 

@@ -223,5 +223,43 @@ namespace EchoServer.Tests
             // Повторна зупинка не має кидати помилок
             Assert.DoesNotThrow(() => sender.StopSending());
         }
+        [Test]
+        public void UdpTimedSender_Dispose_ShouldNotThrow()
+        {
+            // Покриває метод Dispose(), який викликає StopSending
+            var sender = new UdpTimedSender("127.0.0.1", 56020);
+            sender.StartSending(100);
+
+            Assert.DoesNotThrow(() => sender.Dispose());
+
+            // Повторний Dispose теж має бути безпечним
+            Assert.DoesNotThrow(() => sender.Dispose());
+        }
+
+        [Test]
+        public async Task EchoServer_HandleClientAsync_GenericException_LogsError()
+        {
+            // Цей тест спеціально викликає Exception (не OperationCanceledException),
+            // щоб покрити блок catch (Exception ex) { Console.WriteLine(...) }
+
+            var server = new EchoServer(5000);
+            var mockClient = Substitute.For<TcpClient>();
+            var mockStream = Substitute.For<NetworkStream>(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), false);
+
+            mockClient.GetStream().Returns(mockStream);
+            mockStream.CanRead.Returns(true);
+
+            // Кидаємо звичайний Exception
+            mockStream.ReadAsync(Arg.Any<byte[]>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromException<int>(new Exception("Critical Failure")));
+
+            // Act
+            await server.HandleClientAsync(mockClient, CancellationToken.None);
+
+            // Assert
+            // Перевіряємо, що клієнт був закритий (значить блок finally виконався)
+            mockClient.Received().Close();
+        }
     }
+
 }
