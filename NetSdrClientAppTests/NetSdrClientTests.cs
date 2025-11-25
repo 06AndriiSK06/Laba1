@@ -367,7 +367,82 @@ public class NetSdrClientTests
 
 
 
+    // --- ДОДАТКОВІ ТЕСТИ ДЛЯ ПОКРИТТЯ ГІЛОК IF/ELSE ---
 
+    [Test]
+    public async Task TcpClientWrapper_EdgeCases_Coverage()
+    {
+        int port = 56005;
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+        listener.Start();
+
+        var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", port);
+
+        // 1. Test Connect
+        wrapper.Connect();
+        Assert.IsTrue(wrapper.Connected);
+
+        // 2. Test "Already Connected" branch (покриваємо if (Connected) return;)
+        // Має написати в консоль "Already connected...", але не впасти
+        wrapper.Connect();
+        Assert.IsTrue(wrapper.Connected);
+
+        // 3. Test SendMessageAsync(string) overload (ми тестували тільки byte[])
+        var acceptTask = listener.AcceptTcpClientAsync();
+        await wrapper.SendMessageAsync("Hello String");
+        var serverClient = await acceptTask;
+        Assert.IsTrue(serverClient.Connected);
+
+        // 4. Test Disconnect
+        wrapper.Disconnect();
+        Assert.IsFalse(wrapper.Connected);
+
+        // 5. Test "Already Disconnected" branch (покриваємо if (!Connected)...)
+        // Має написати "No active connection...", але не впасти
+        wrapper.Disconnect();
+
+        // 6. Test SendMessageAsync when disconnected (Exception branch)
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await wrapper.SendMessageAsync("Fail"));
+
+        listener.Stop();
+    }
+
+    [Test]
+    public async Task UdpClientWrapper_EdgeCases_Coverage()
+    {
+        int port = 56006;
+        var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(port);
+
+        // 1. Test GetHashCode (Sonar часто вимагає покриття перевизначених методів)
+        var hash = wrapper.GetHashCode();
+        Assert.That(hash, Is.Not.Zero);
+
+        // 2. Test Exit method (дублює StopListening, але треба покрити)
+        var task = wrapper.StartListeningAsync();
+        await Task.Delay(50);
+
+        wrapper.Exit(); // Це має зупинити прослуховування
+
+        await Task.WhenAny(task, Task.Delay(500));
+        Assert.IsTrue(task.IsCompleted);
+    }
+
+    [Test]
+    public async Task UdpClientWrapper_ErrorHandling_Coverage()
+    {
+        // Тест на випадок, коли порт зайнятий (покриваємо try/catch у StartListeningAsync)
+        int port = 56007;
+        using var blocker = new System.Net.Sockets.UdpClient(port); // Займаємо порт
+
+        var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(port);
+
+        // Це має впасти всередині і вивести помилку в консоль, але не обвалити тест
+        // (або завершити таск миттєво)
+        await wrapper.StartListeningAsync();
+
+        // Якщо ми тут, значить exception був оброблений всередині (catch (Exception ex))
+        Assert.Pass();
+    }
 
 
 
