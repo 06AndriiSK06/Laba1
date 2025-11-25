@@ -24,26 +24,6 @@ namespace NetSdrClientAppTests
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         [Test]
         public void UI_Should_Not_Depend_On_Infrastructure()
         {

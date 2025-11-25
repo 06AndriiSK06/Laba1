@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.PortableExecutable;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Messages
 {
-    //TODO: analyze possible use of [StructLayout] for better performance and readability 
     public static class NetSdrMessageHelper
     {
         private const short _maxMessageLength = 8191;
@@ -71,19 +67,41 @@ namespace NetSdrClientApp.Messages
             itemCode = ControlItemCodes.None;
             sequenceNumber = 0;
             bool success = true;
+
+            // Перевірка на null або занадто коротке повідомлення
+            if (msg == null || msg.Length < _msgHeaderLength)
+            {
+                type = MsgTypes.Ack; // Default
+                body = Array.Empty<byte>();
+                return false;
+            }
+
             var msgEnumarable = msg as IEnumerable<byte>;
 
             TranslateHeader(msgEnumarable.Take(_msgHeaderLength).ToArray(), out type, out int msgLength);
             msgEnumarable = msgEnumarable.Skip(_msgHeaderLength);
             msgLength -= _msgHeaderLength;
 
+            // Перевірка, чи фактична довжина відповідає заявленій
+            if (msg.Length != (msgLength + _msgHeaderLength))
+            {
+                body = Array.Empty<byte>();
+                return false;
+            }
+
             if (type < MsgTypes.DataItem0) // get item code
             {
+                if (msgEnumarable.Count() < _msgControlItemLength)
+                {
+                    body = Array.Empty<byte>();
+                    return false;
+                }
+
                 var value = BitConverter.ToUInt16(msgEnumarable.Take(_msgControlItemLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
 
-                if (Enum.IsDefined(typeof(ControlItemCodes), value))
+                if (Enum.IsDefined(typeof(ControlItemCodes), (int)value))
                 {
                     itemCode = (ControlItemCodes)value;
                 }
@@ -94,6 +112,12 @@ namespace NetSdrClientApp.Messages
             }
             else // get sequenceNumber
             {
+                if (msgEnumarable.Count() < _msgSequenceNumberLength)
+                {
+                    body = Array.Empty<byte>();
+                    return false;
+                }
+
                 sequenceNumber = BitConverter.ToUInt16(msgEnumarable.Take(_msgSequenceNumberLength).ToArray());
                 msgEnumarable = msgEnumarable.Skip(_msgSequenceNumberLength);
                 msgLength -= _msgSequenceNumberLength;
@@ -101,6 +125,7 @@ namespace NetSdrClientApp.Messages
 
             body = msgEnumarable.ToArray();
 
+            // Додаткова перевірка довжини тіла
             success &= body.Length == msgLength;
 
             return success;
@@ -109,21 +134,28 @@ namespace NetSdrClientApp.Messages
         public static IEnumerable<int> GetSamples(ushort sampleSize, byte[] body)
         {
             sampleSize /= 8; //to bytes
-            if (sampleSize  > 4)
+
+            // Валідація sampleSize
+            if (sampleSize == 0 || sampleSize > 4)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(sampleSize), "Sample size must be 8, 16, 24 or 32 bits.");
             }
 
             var bodyEnumerable = body as IEnumerable<byte>;
-            var prefixBytes = Enumerable.Range(0, 4 - sampleSize)
-                                      .Select(b => (byte)0);
+            // Генеруємо префікс нулів, якщо розмір менше 4 байт (для заповнення Int32)
+            var prefixBytes = Enumerable.Repeat((byte)0, 4 - sampleSize).ToArray();
 
             while (bodyEnumerable.Count() >= sampleSize)
             {
-                yield return BitConverter.ToInt32(bodyEnumerable
-                    .Take(sampleSize)
-                    .Concat(prefixBytes)
-                    .ToArray());
+            
+                var chunk = bodyEnumerable.Take(sampleSize).ToArray();
+
+              
+
+                var bytesForInt = chunk.Concat(prefixBytes).ToArray();
+
+                yield return BitConverter.ToInt32(bytesForInt, 0);
+
                 bodyEnumerable = bodyEnumerable.Skip(sampleSize);
             }
         }
