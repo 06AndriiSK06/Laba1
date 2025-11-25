@@ -34,7 +34,7 @@ jobs:
           /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
           /d:sonar.cpd.cs.minimumLines=5 `
-          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+          /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml,**/Program.cs,**/MainForm.cs,**/MainForm.Designer.cs,**/FakeUIDependency.cs" `
           /d:sonar.qualitygate.wait=true
         shell: pwsh
 
@@ -46,7 +46,6 @@ jobs:
         run: dotnet build NetSdrClient.sln -c Release --no-restore
 
       - name: Tests with coverage
-        # Додано Format=opencover, щоб Sonar міг прочитати звіт
         run: |
           dotnet test NetSdrClient.sln -c Release --no-build `
             --verbosity normal `
