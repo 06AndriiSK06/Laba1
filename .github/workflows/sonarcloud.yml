@@ -56,8 +56,8 @@ jobs:
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           dotnet sonarscanner begin `
-          /k:"06AndriiSK06_Laba1" `
-          /o:"06andriisk06" `
+          /d:sonar.projectKey="06AndriiSK06_Laba1" `      # <-- ВИПРАВЛЕНО
+          /d:sonar.organization="06andriisk06" `          # <-- ВИПРАВЛЕНО
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
           /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
@@ -65,11 +65,14 @@ jobs:
           /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
           /d:sonar.qualitygate.wait=true
         shell: pwsh
+        
       # 2) BUILD & TEST
       - name: Restore
         run: dotnet restore NetSdrClient.sln
+        
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
+        
       - name: Tests with coverage (OpenCover)
         run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
@@ -77,6 +80,7 @@ jobs:
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
         shell: pwsh
+        
       # 3) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
