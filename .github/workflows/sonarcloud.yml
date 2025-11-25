@@ -39,17 +39,17 @@ jobs:
         shell: pwsh
 
       # 2) BUILD & TEST
-      # ВАЖЛИВО: Використовуємо Laba1.sln (або точну назву вашого файлу рішення)
+      # ВИПРАВЛЕНО: Використовуємо NetSdrClient.sln
       - name: Restore
-        run: dotnet restore Laba1.sln
+        run: dotnet restore NetSdrClient.sln
 
       - name: Build
-        run: dotnet build Laba1.sln -c Release --no-restore
+        run: dotnet build NetSdrClient.sln -c Release --no-restore
 
       - name: Tests with coverage
-        # ВАЖЛИВО: Запускаємо тести для ВСЬОГО рішення
+        
         run: |
-          dotnet test Laba1.sln -c Release --no-build `
+          dotnet test NetSdrClient.sln -c Release --no-build `
             --verbosity normal `
             --collect:"XPlat Code Coverage" `
             --results-directory ./TestResults
