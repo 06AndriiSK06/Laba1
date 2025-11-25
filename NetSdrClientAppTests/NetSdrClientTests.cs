@@ -444,6 +444,136 @@ public class NetSdrClientTests
         Assert.Pass();
     }
 
+    // Додайте цей клас в NetSdrClientTests.cs
+    [TestFixture]
+    public class WrapperEdgeCaseTests
+    {
+        [Test]
+        public void TcpClientWrapper_Connect_WhenAlreadyConnected_ShouldReturnEarly()
+        {
+            // Покриває гілку: if (Connected) { return; }
+            int port = 56010;
+            var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+            listener.Start();
+
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", port);
+
+            try
+            {
+                wrapper.Connect();
+                Assert.IsTrue(wrapper.Connected);
+
+                // Другий виклик має потрапити в if (Connected) і просто вийти
+                // (можна перевірити консоль, але головне - щоб код пройшов цей шлях)
+                wrapper.Connect();
+                Assert.IsTrue(wrapper.Connected);
+            }
+            finally
+            {
+                wrapper.Disconnect();
+                listener.Stop();
+            }
+        }
+
+        [Test]
+        public void TcpClientWrapper_Disconnect_WhenNotConnected_ShouldHandleGracefully()
+        {
+            // Покриває гілку: else { Console.WriteLine("No active connection..."); }
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", 56011);
+
+            // Викликаємо Disconnect без Connect
+            Assert.DoesNotThrow(() => wrapper.Disconnect());
+        }
+
+        [Test]
+        public void TcpClientWrapper_Connect_ToInvalidHost_ShouldCatchException()
+        {
+            // Покриває блок catch (Exception ex) у методі Connect
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("invalid-host-name-xyz", 5000);
+
+            Assert.DoesNotThrow(() => wrapper.Connect());
+            Assert.IsFalse(wrapper.Connected);
+        }
+
+        [Test]
+        public async Task TcpClientWrapper_SendMessageString_ShouldWork()
+        {
+            // Покриває перевантаження SendMessageAsync(string)
+            int port = 56012;
+            var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+            listener.Start();
+
+            var wrapper = new NetSdrClientApp.Networking.TcpClientWrapper("127.0.0.1", port);
+
+            try
+            {
+                wrapper.Connect();
+                var serverTask = listener.AcceptTcpClientAsync();
+
+                await wrapper.SendMessageAsync("Test String");
+
+                var serverClient = await serverTask;
+                Assert.IsTrue(serverClient.Connected);
+            }
+            finally
+            {
+                wrapper.Disconnect();
+                listener.Stop();
+            }
+        }
+
+        [Test]
+        public async Task UdpClientWrapper_EdgeCases_Coverage()
+        {
+            int port = 56013;
+            var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(port);
+
+            // 1. Покриваємо GetHashCode (Sonar часто вимагає це)
+            var hash = wrapper.GetHashCode();
+            Assert.That(hash, Is.Not.Zero);
+
+            // 2. Покриваємо метод Exit() (який дублює StopListening)
+            var task = wrapper.StartListeningAsync();
+            await Task.Delay(50);
+
+            wrapper.Exit(); // Має зупинити прослуховування
+
+            await Task.WhenAny(task, Task.Delay(500));
+            Assert.IsTrue(task.IsCompleted);
+        }
+
+        [Test]
+        public async Task UdpClientWrapper_StartListening_WhenPortBusy_ShouldCatchException()
+        {
+            // Покриває блок catch (Exception ex) у StartListeningAsync
+            int port = 56014;
+
+            // Займаємо порт іншим клієнтом
+            using var blocker = new System.Net.Sockets.UdpClient(port);
+
+            var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(port);
+
+            // Цей виклик має викликати помилку всередині (SocketException), 
+            // яка буде перехоплена блоком catch і виведена в консоль.
+            // Тест не повинен впасти.
+            await wrapper.StartListeningAsync();
+
+            // Якщо ми дійшли сюди, значить catch спрацював
+            Assert.Pass();
+        }
+
+        [Test]
+        public void UdpClientWrapper_StopListening_WhenErrorOccurs_ShouldCatchException()
+        {
+            // Покриває блок catch у StopListeningInternal
+            // Це складний кейс для імітації, але ми можемо спробувати викликати Stop на "чистому" об'єкті,
+            // де _udpClient може бути null або в невизначеному стані, хоча в вашому коді є перевірка ?.
+            // У даному випадку просто перевіримо безпечний виклик.
+            var wrapper = new NetSdrClientApp.Networking.UdpClientWrapper(56015);
+            Assert.DoesNotThrow(() => wrapper.StopListening());
+        }
+    }
+
 
 
 

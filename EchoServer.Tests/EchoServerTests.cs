@@ -164,6 +164,28 @@ namespace EchoServer.Tests
             listener.Stop();
         }
     }
+    // Додайте цей клас в EchoServer.Tests.cs
+    [TestFixture]
+    public class TcpListenerAdapterTests
+    {
+        [Test]
+        public void TcpListenerAdapter_Lifecycle_Coverage()
+        {
+            // Цей тест перевіряє реальний клас TcpListenerAdapter, а не мок.
+            // Використовуємо порт 0, щоб система сама вибрала вільний порт.
+            var adapter = new TcpListenerAdapter(IPAddress.Loopback, 0);
+
+            // Перевіряємо, що методи не кидають помилок при виклику
+            Assert.DoesNotThrow(() => adapter.Start());
+
+            // AcceptTcpClientAsync важко протестувати без блокування, 
+            // але сам факт створення класу вже покриває конструктор.
+
+            Assert.DoesNotThrow(() => adapter.Stop());
+        }
+    }
+
+
 
     // --- ВИПРАВЛЕНІ ТЕСТИ UdpTimedSender ---
 
